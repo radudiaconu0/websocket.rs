@@ -1,7 +1,7 @@
 #![allow(clippy::unusual_byte_groupings)]
 use crate::*;
 use std::io::{IoSlice, Result};
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
 
 /// WebSocket implementation for both client and server
 #[derive(Debug)]
@@ -125,6 +125,38 @@ where
     /// Flushes this output stream, ensuring that all intermediately buffered contents reach their destination.
     pub async fn flush(&mut self) -> Result<()> {
         self.stream.flush().await
+    }
+}
+
+impl<Stream> WebSocket<Stream>
+where
+    Stream: AsyncRead + AsyncWrite + Unpin
+{
+    /// Split this WebSocket into separate read and write halves
+    pub fn split(self) -> (
+        WebSocket<ReadHalf<Stream>>,
+        WebSocket<WriteHalf<Stream>>,
+    ) {
+        let (reader, writer) = tokio::io::split(self.stream);
+
+        // Create WebSocket instances for each half with the same configuration
+        let rx = WebSocket {
+            stream: reader,
+            max_payload_len: self.max_payload_len,
+            role: self.role.clone(),
+            is_closed: self.is_closed,
+            fragment: self.fragment,
+        };
+
+        let tx = WebSocket {
+            stream: writer,
+            max_payload_len: self.max_payload_len,
+            role: self.role,
+            is_closed: self.is_closed,
+            fragment: None, // Writer doesn't need fragment state
+        };
+
+        (rx, tx)
     }
 }
 
@@ -303,7 +335,7 @@ where
 /// - After both sending and receiving a Close message, an endpoint
 ///   considers the WebSocket connection closed and MUST close the
 ///   underlying TCP connection.
-fn on_close(msg: &[u8]) -> Event {
+pub fn on_close(msg: &[u8]) -> Event {
     let code = msg
         .get(..2)
         .map(|bytes| u16::from_be_bytes([bytes[0], bytes[1]]))

@@ -4,17 +4,26 @@
 
 mod frame;
 mod ws;
+mod split;
+
 #[doc(hidden)]
 pub use frame::Frame;
 pub use ws::WebSocket;
 
 /// Two roles that can be played by a WebSocket connection: `Server` and `Client`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Role {
     /// Represent websocket server instance.
     Server,
     /// Represent websocket client instance.
     Client,
+}
+
+#[macro_export]
+macro_rules! err {
+    [$msg:expr] => {
+        return Ok(Event::Error($msg))
+    };
 }
 
 /// It represent the type of data that is being sent over the WebSocket connection.
@@ -73,7 +82,7 @@ pub enum DataType {
     Complete(MessageType),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Represent a websocket event
 pub enum Event {
     /// Websocket data frame.
