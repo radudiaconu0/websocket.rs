@@ -3,8 +3,9 @@
 #![warn(missing_docs)]
 
 mod frame;
-mod ws;
+#[cfg(feature = "tokio")]
 mod split;
+mod ws;
 
 #[doc(hidden)]
 pub use frame::Frame;

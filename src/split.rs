@@ -80,11 +80,11 @@ where
                 (1, true, None) => DataType::Complete(MessageType::Text),
                 (2, false, None) => {
                     self.fragment = Some(MessageType::Binary);
-                    DataType::Stream(Stream::Start(MessageType::Binary))
+                    DataType::Stream(crate::Stream(MessageType::Binary))
                 }
                 (1, false, None) => {
                     self.fragment = Some(MessageType::Text);
-                    DataType::Stream(Stream::Start(MessageType::Text))
+                    crate::err(Stream::Start(MessageType::Text))
                 }
                 (0, false, Some(ty)) => DataType::Stream(Stream::Next(ty)),
                 (0, true, Some(ty)) => {
@@ -144,7 +144,7 @@ where
             opcode: 8,
             data: reason.to_bytes().as_ref(),
         })
-            .await?;
+        .await?;
         self.stream.flush().await
     }
 
@@ -154,7 +154,7 @@ where
             opcode: 9,
             data: data.as_ref(),
         })
-            .await
+        .await
     }
 
     pub async fn send_pong(&mut self, data: impl AsRef<[u8]>) -> std::io::Result<()> {
@@ -163,7 +163,7 @@ where
             opcode: 10,
             data: data.as_ref(),
         })
-            .await
+        .await
     }
 
     pub async fn send_raw(&mut self, frame: Frame<'_>) -> std::io::Result<()> {

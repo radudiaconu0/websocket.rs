@@ -1,7 +1,7 @@
 #![allow(clippy::unusual_byte_groupings)]
 use crate::*;
 use std::io::{IoSlice, Result};
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// WebSocket implementation for both client and server
 #[derive(Debug)]
@@ -128,19 +128,20 @@ where
     }
 }
 
+#[cfg(feature = "tokio")]
+use crate::split::{WebSocketRead, WebSocketWrite};
+
+#[cfg(feature = "tokio")]
 impl<Stream> WebSocket<Stream>
 where
-    Stream: AsyncRead + AsyncWrite + Unpin
+    Stream: AsyncRead + AsyncWrite + Unpin,
 {
     /// Split this WebSocket into separate read and write halves
-    pub fn split(self) -> (
-        WebSocket<ReadHalf<Stream>>,
-        WebSocket<WriteHalf<Stream>>,
-    ) {
+    #[cfg(feature = "tokio")]
+    pub fn split(self) -> (WebSocketRead<Stream>, WebSocketWrite<Stream>) {
         let (reader, writer) = tokio::io::split(self.stream);
 
-        // Create WebSocket instances for each half with the same configuration
-        let rx = WebSocket {
+        let rx = WebSocketRead {
             stream: reader,
             max_payload_len: self.max_payload_len,
             role: self.role.clone(),
@@ -148,12 +149,11 @@ where
             fragment: self.fragment,
         };
 
-        let tx = WebSocket {
+        let tx = WebSocketWrite {
             stream: writer,
             max_payload_len: self.max_payload_len,
             role: self.role,
             is_closed: self.is_closed,
-            fragment: None, // Writer doesn't need fragment state
         };
 
         (rx, tx)
